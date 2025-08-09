@@ -88,6 +88,15 @@ export class ResumeAnalyzer {
   analyze(resume: string, jobDescription: string): AnalysisResult {
     console.log('🔍 Starting comprehensive resume analysis...');
     
+    // Validate inputs
+    if (!this.isValidResume(resume)) {
+      throw new Error('Please provide a valid resume with substantial content');
+    }
+    
+    if (!this.isValidJobDescription(jobDescription)) {
+      throw new Error('Please provide a valid job description with requirements and responsibilities');
+    }
+    
     // Step 1: Extract and normalize keywords from both documents
     const resumeWords = this.extractKeywords(resume.toLowerCase());
     const jobWords = this.extractKeywords(jobDescription.toLowerCase());
@@ -111,6 +120,12 @@ export class ResumeAnalyzer {
     const overallScore = this.calculateOverallScore(resume, jobDescription, missingKeywords);
     const atsCompatibility = this.calculateATSCompatibility(resume, missingKeywords);
     
+    // Step 6: Generate detailed breakdowns and analysis
+    const detailedBreakdown = this.generateDetailedBreakdown(resume, jobDescription, missingKeywords);
+    const sectionGrades = this.analyzeSectionGrades(resume, jobDescription);
+    const atsIssues = this.identifyATSIssues(resume);
+    const nextSteps = this.generateNextSteps(resume, jobDescription, missingKeywords, overallScore, atsCompatibility);
+    
     console.log(`📈 Overall Score: ${overallScore}%`);
     console.log(`🤖 ATS Compatibility: ${atsCompatibility}%`);
     
@@ -119,10 +134,469 @@ export class ResumeAnalyzer {
       suggestions,
       rewrittenSections,
       overallScore,
-      atsCompatibility
+      atsCompatibility,
+      detailedBreakdown,
+      sectionGrades,
+      atsIssues,
+      nextSteps
     };
   }
 
+  /**
+   * Validates that the input is a legitimate resume
+   */
+  private isValidResume(resume: string): boolean {
+    const resumeIndicators = [
+      'experience', 'education', 'skills', 'work', 'employment', 'job',
+      'university', 'college', 'degree', 'certification', 'project',
+      'responsibilities', 'achievements', 'accomplishments'
+    ];
+    
+    const lowerResume = resume.toLowerCase();
+    const hasResumeContent = resumeIndicators.some(indicator => lowerResume.includes(indicator));
+    const hasMinimumLength = resume.length >= 200;
+    const hasContactInfo = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(resume) || 
+                          /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/.test(resume);
+    
+    return hasResumeContent && hasMinimumLength && (hasContactInfo || lowerResume.includes('phone') || lowerResume.includes('email'));
+  }
+
+  /**
+   * Validates that the input is a legitimate job description
+   */
+  private isValidJobDescription(jobDescription: string): boolean {
+    const jobIndicators = [
+      'requirements', 'qualifications', 'responsibilities', 'duties', 'skills',
+      'experience', 'required', 'preferred', 'must', 'should', 'candidate',
+      'position', 'role', 'job', 'company', 'team', 'work', 'years'
+    ];
+    
+    const lowerJob = jobDescription.toLowerCase();
+    const hasJobContent = jobIndicators.filter(indicator => lowerJob.includes(indicator)).length >= 3;
+    const hasMinimumLength = jobDescription.length >= 150;
+    
+    return hasJobContent && hasMinimumLength;
+  }
+
+  /**
+   * Generates detailed breakdown of scoring components
+   */
+  private generateDetailedBreakdown(resume: string, jobDescription: string, missingKeywords: MissingKeyword[]): DetailedBreakdown {
+    const resumeWords = this.extractKeywords(resume.toLowerCase());
+    const jobWords = this.extractKeywords(jobDescription.toLowerCase());
+    
+    // Calculate keyword match percentage
+    const totalJobKeywords = Array.from(jobWords).length;
+    const matchedKeywords = totalJobKeywords - missingKeywords.length;
+    const keywordMatchPercentage = Math.round((matchedKeywords / totalJobKeywords) * 100);
+    
+    // Content quality metrics
+    const quantificationLevel = Math.min(100, this.analyzeQuantification(resume) * 10);
+    const actionVerbStrength = Math.max(0, 100 - (this.countWeakVerbs(resume) * 8));
+    const contentQualityScore = Math.round((quantificationLevel + actionVerbStrength) / 2);
+    
+    // Formatting score
+    const formattingScore = this.hasATSFormattingIssues(resume) ? 60 : 95;
+    
+    // Structure score
+    const structureScore = this.calculateStructureScore(resume);
+    
+    return {
+      keywordMatchPercentage,
+      contentQualityScore,
+      formattingScore,
+      structureScore,
+      quantificationLevel,
+      actionVerbStrength
+    };
+  }
+
+  /**
+   * Calculates structure score based on resume organization
+   */
+  private calculateStructureScore(resume: string): number {
+    let score = 100;
+    const lowerResume = resume.toLowerCase();
+    
+    // Check for essential sections
+    const requiredSections = ['experience', 'education', 'skills'];
+    const missingSections = requiredSections.filter(section => !lowerResume.includes(section));
+    score -= missingSections.length * 15;
+    
+    // Check for professional summary
+    if (!this.hasProfessionalSummary(resume)) {
+      score -= 10;
+    }
+    
+    // Check for proper organization
+    if (!resume.includes('•') && !resume.includes('-') && !resume.includes('*')) {
+      score -= 15; // No bullet points
+    }
+    
+    return Math.max(0, score);
+  }
+
+  /**
+   * Analyzes individual resume sections and assigns grades
+   */
+  private analyzeSectionGrades(resume: string, jobDescription: string): SectionGrade[] {
+    const sections: SectionGrade[] = [];
+    const resumeLines = resume.split('\n');
+    
+    // Analyze Professional Summary
+    const summarySection = this.extractSummarySection(resume);
+    if (summarySection) {
+      sections.push(this.gradeSummarySection(summarySection, jobDescription));
+    }
+    
+    // Analyze Work Experience
+    sections.push(this.gradeExperienceSection(resume, jobDescription));
+    
+    // Analyze Skills Section
+    sections.push(this.gradeSkillsSection(resume, jobDescription));
+    
+    // Analyze Education Section
+    sections.push(this.gradeEducationSection(resume));
+    
+    return sections;
+  }
+
+  /**
+   * Grades the professional summary section
+   */
+  private gradeSummarySection(summary: string, jobDescription: string): SectionGrade {
+    let score = 100;
+    const issues: string[] = [];
+    const strengths: string[] = [];
+    
+    // Check length
+    if (summary.length < 100) {
+      score -= 20;
+      issues.push('Summary is too brief - should be 3-4 sentences');
+    } else {
+      strengths.push('Appropriate length for professional summary');
+    }
+    
+    // Check for quantification
+    if (!/\d+/.test(summary)) {
+      score -= 15;
+      issues.push('Missing quantifiable achievements or years of experience');
+    } else {
+      strengths.push('Contains specific numbers and metrics');
+    }
+    
+    // Check for weak language
+    const weakSummaryTerms = ['seeking', 'looking for', 'hardworking', 'team player'];
+    const hasWeakLanguage = weakSummaryTerms.some(term => summary.toLowerCase().includes(term));
+    if (hasWeakLanguage) {
+      score -= 25;
+      issues.push('Contains weak, generic language instead of specific value propositions');
+    } else {
+      strengths.push('Uses strong, specific language');
+    }
+    
+    return {
+      section: 'Professional Summary',
+      grade: this.scoreToGrade(score),
+      score,
+      issues,
+      strengths
+    };
+  }
+
+  /**
+   * Grades the work experience section
+   */
+  private gradeExperienceSection(resume: string, jobDescription: string): SectionGrade {
+    let score = 100;
+    const issues: string[] = [];
+    const strengths: string[] = [];
+    
+    // Check for quantification
+    const quantificationScore = this.analyzeQuantification(resume);
+    if (quantificationScore < 3) {
+      score -= 30;
+      issues.push('Lacks quantifiable achievements and metrics');
+    } else {
+      strengths.push('Contains measurable accomplishments');
+    }
+    
+    // Check for weak verbs
+    const weakVerbCount = this.countWeakVerbs(resume);
+    if (weakVerbCount > 3) {
+      score -= 20;
+      issues.push(`Contains ${weakVerbCount} instances of weak language`);
+    } else {
+      strengths.push('Uses strong action verbs');
+    }
+    
+    // Check for relevant keywords
+    const jobWords = this.extractKeywords(jobDescription.toLowerCase());
+    const resumeWords = this.extractKeywords(resume.toLowerCase());
+    const matchedKeywords = Array.from(jobWords).filter(word => resumeWords.has(word)).length;
+    const matchPercentage = (matchedKeywords / Array.from(jobWords).length) * 100;
+    
+    if (matchPercentage < 60) {
+      score -= 25;
+      issues.push('Missing key skills and technologies from job requirements');
+    } else {
+      strengths.push('Good alignment with job requirements');
+    }
+    
+    return {
+      section: 'Work Experience',
+      grade: this.scoreToGrade(score),
+      score,
+      issues,
+      strengths
+    };
+  }
+
+  /**
+   * Grades the skills section
+   */
+  private gradeSkillsSection(resume: string, jobDescription: string): SectionGrade {
+    let score = 100;
+    const issues: string[] = [];
+    const strengths: string[] = [];
+    
+    const lowerResume = resume.toLowerCase();
+    
+    // Check if skills section exists
+    if (!lowerResume.includes('skills')) {
+      score -= 40;
+      issues.push('No dedicated skills section found');
+    } else {
+      strengths.push('Has dedicated skills section');
+    }
+    
+    // Check for categorization
+    const hasCategories = lowerResume.includes('technical') || lowerResume.includes('programming') || 
+                         lowerResume.includes('languages') || lowerResume.includes('frameworks');
+    if (!hasCategories) {
+      score -= 20;
+      issues.push('Skills are not well-organized into categories');
+    } else {
+      strengths.push('Skills are well-categorized');
+    }
+    
+    // Check for relevant technical skills
+    const technicalSkillsCount = Array.from(this.technicalKeywords)
+      .filter(skill => lowerResume.includes(skill)).length;
+    
+    if (technicalSkillsCount < 5) {
+      score -= 25;
+      issues.push('Limited technical skills listed');
+    } else {
+      strengths.push(`Contains ${technicalSkillsCount} relevant technical skills`);
+    }
+    
+    return {
+      section: 'Skills',
+      grade: this.scoreToGrade(score),
+      score,
+      issues,
+      strengths
+    };
+  }
+
+  /**
+   * Grades the education section
+   */
+  private gradeEducationSection(resume: string): SectionGrade {
+    let score = 100;
+    const issues: string[] = [];
+    const strengths: string[] = [];
+    
+    const lowerResume = resume.toLowerCase();
+    
+    // Check if education section exists
+    if (!lowerResume.includes('education')) {
+      score -= 30;
+      issues.push('No education section found');
+    } else {
+      strengths.push('Has education section');
+    }
+    
+    // Check for degree information
+    const hasDegree = lowerResume.includes('degree') || lowerResume.includes('bachelor') || 
+                     lowerResume.includes('master') || lowerResume.includes('phd');
+    if (!hasDegree) {
+      score -= 15;
+      issues.push('Degree information not clearly specified');
+    } else {
+      strengths.push('Degree information is clear');
+    }
+    
+    // Check for graduation dates
+    const hasDate = /\b(19|20)\d{2}\b/.test(resume);
+    if (!hasDate) {
+      score -= 10;
+      issues.push('Missing graduation dates');
+    } else {
+      strengths.push('Includes relevant dates');
+    }
+    
+    return {
+      section: 'Education',
+      grade: this.scoreToGrade(score),
+      score,
+      issues,
+      strengths
+    };
+  }
+
+  /**
+   * Converts numeric score to letter grade
+   */
+  private scoreToGrade(score: number): 'A' | 'B' | 'C' | 'D' | 'F' {
+    if (score >= 90) return 'A';
+    if (score >= 80) return 'B';
+    if (score >= 70) return 'C';
+    if (score >= 60) return 'D';
+    return 'F';
+  }
+
+  /**
+   * Identifies specific ATS compatibility issues
+   */
+  private identifyATSIssues(resume: string): ATSIssue[] {
+    const issues: ATSIssue[] = [];
+    
+    // Check for problematic formatting
+    if (/\|/.test(resume)) {
+      issues.push({
+        type: 'critical',
+        issue: 'Contains pipe characters (|) in formatting',
+        impact: 'ATS systems may misparse content sections',
+        solution: 'Replace pipe characters with standard bullet points (•) or hyphens (-)'
+      });
+    }
+    
+    if (/→|←|↑|↓/.test(resume)) {
+      issues.push({
+        type: 'critical',
+        issue: 'Contains arrow symbols in text',
+        impact: 'Special characters can break ATS parsing',
+        solution: 'Replace arrows with standard text like "to", "from", or bullet points'
+      });
+    }
+    
+    if (!/•|-|\*/.test(resume)) {
+      issues.push({
+        type: 'warning',
+        issue: 'No bullet points detected',
+        impact: 'Content may appear as large text blocks to ATS',
+        solution: 'Use standard bullet points (•) to separate achievements and responsibilities'
+      });
+    }
+    
+    // Check for missing standard sections
+    const lowerResume = resume.toLowerCase();
+    const standardSections = ['experience', 'education', 'skills'];
+    standardSections.forEach(section => {
+      if (!lowerResume.includes(section)) {
+        issues.push({
+          type: 'warning',
+          issue: `Missing standard "${section}" section header`,
+          impact: 'ATS may not properly categorize your information',
+          solution: `Add a clear "${section.charAt(0).toUpperCase() + section.slice(1)}" section header`
+        });
+      }
+    });
+    
+    // Check for contact information
+    const hasEmail = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(resume);
+    const hasPhone = /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/.test(resume);
+    
+    if (!hasEmail && !hasPhone) {
+      issues.push({
+        type: 'critical',
+        issue: 'No contact information detected',
+        impact: 'Recruiters cannot reach you even if ATS ranks you highly',
+        solution: 'Add email address and phone number at the top of your resume'
+      });
+    }
+    
+    // Check for excessive formatting
+    if (/\t/.test(resume)) {
+      issues.push({
+        type: 'minor',
+        issue: 'Contains tab characters',
+        impact: 'May cause alignment issues in ATS display',
+        solution: 'Use consistent spacing instead of tab characters'
+      });
+    }
+    
+    return issues;
+  }
+
+  /**
+   * Generates personalized next steps for improvement
+   */
+  private generateNextSteps(resume: string, jobDescription: string, missingKeywords: MissingKeyword[], overallScore: number, atsScore: number): NextStep[] {
+    const steps: NextStep[] = [];
+    
+    // Priority 1: Critical missing keywords
+    const criticalKeywords = missingKeywords.filter(k => k.importance === 'high');
+    if (criticalKeywords.length > 0) {
+      steps.push({
+        priority: 1,
+        action: `Add ${criticalKeywords.length} Critical Keywords`,
+        description: `Incorporate these high-priority terms: ${criticalKeywords.slice(0, 5).map(k => k.keyword).join(', ')}. Focus on naturally integrating them into your experience descriptions.`,
+        estimatedImpact: '+15-25 points',
+        timeRequired: '30-45 minutes'
+      });
+    }
+    
+    // Priority 2: ATS formatting issues
+    if (atsScore < 80) {
+      steps.push({
+        priority: 2,
+        action: 'Fix ATS Compatibility Issues',
+        description: 'Remove special characters, use standard bullet points, and ensure proper section headers. This is crucial for passing initial ATS screening.',
+        estimatedImpact: '+10-20 points',
+        timeRequired: '15-20 minutes'
+      });
+    }
+    
+    // Priority 3: Quantification
+    const quantificationScore = this.analyzeQuantification(resume);
+    if (quantificationScore < 5) {
+      steps.push({
+        priority: 3,
+        action: 'Add Quantifiable Achievements',
+        description: 'Include specific numbers, percentages, and metrics in your accomplishments. Examples: "Increased sales by 25%", "Managed team of 12", "Reduced costs by $50K annually".',
+        estimatedImpact: '+8-15 points',
+        timeRequired: '45-60 minutes'
+      });
+    }
+    
+    // Priority 4: Weak language
+    const weakVerbCount = this.countWeakVerbs(resume);
+    if (weakVerbCount > 3) {
+      steps.push({
+        priority: 4,
+        action: 'Strengthen Action Verbs',
+        description: `Replace ${weakVerbCount} instances of weak language with powerful action verbs. Change "responsible for" to "led", "worked on" to "developed", etc.`,
+        estimatedImpact: '+5-12 points',
+        timeRequired: '20-30 minutes'
+      });
+    }
+    
+    // Priority 5: Professional summary
+    if (!this.hasProfessionalSummary(resume)) {
+      steps.push({
+        priority: 5,
+        action: 'Add Professional Summary',
+        description: 'Create a compelling 3-4 line summary highlighting your key qualifications, years of experience, and value proposition for this specific role.',
+        estimatedImpact: '+5-10 points',
+        timeRequired: '25-35 minutes'
+      });
+    }
+    
+    return steps.slice(0, 5); // Limit to top 5 most impactful steps
+  }
   /**
    * Extracts meaningful keywords from text, filtering out common words
    * Uses advanced text processing to identify compound terms and technical phrases
