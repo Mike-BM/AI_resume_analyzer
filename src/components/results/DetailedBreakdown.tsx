@@ -1,9 +1,9 @@
 import React from 'react';
-import { DetailedBreakdown, SectionGrade, ATSIssue } from '../../types';
+import { DetailedBreakdown as DetailedBreakdownType, SectionGrade, ATSIssue } from '../../types';
 import { BarChart3, AlertTriangle, CheckCircle, XCircle, Award, FileText, Target, Zap } from 'lucide-react';
 
 interface DetailedBreakdownProps {
-  breakdown: DetailedBreakdown;
+  breakdown: DetailedBreakdownType;
   sectionGrades: SectionGrade[];
   atsIssues: ATSIssue[];
 }
