@@ -80,7 +80,7 @@ function App() {
       handleNewAnalysis();
     }
   };
-  return (
+
   const handleApiKeySet = (apiKey: string) => {
     setGeminiApiKey(apiKey);
     if (apiKey) {
@@ -93,6 +93,7 @@ function App() {
     }
   };
 
+  return (
     <div className="min-h-screen bg-gray-50">
       <Header />
       
