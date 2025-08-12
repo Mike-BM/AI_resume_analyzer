@@ -11,7 +11,7 @@ const Header: React.FC = () => {
           </div>
           <div>
             <h1 className="text-3xl font-bold">Resume Analyzer & Enhancer</h1>
-            <p className="text-blue-100 text-lg">Professional HR & ATS Optimization Tool</p>
+            <p className="text-blue-100 text-lg">AI-Powered Professional Resume Optimization</p>
           </div>
         </div>
         

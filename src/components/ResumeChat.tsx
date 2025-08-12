@@ -81,11 +81,11 @@ const ResumeChat: React.FC<ResumeChatProps> = ({
   };
 
   const suggestedQuestions = [
-    "What are the most important keywords I'm missing?",
-    "How can I better quantify my achievements?",
-    "What specific skills should I highlight more?",
-    "How can I improve my professional summary?",
-    "What ATS issues should I fix first?"
+    "What are the top 3 keywords I should add to my resume?",
+    "How can I quantify my achievements with specific numbers?",
+    "Which technical skills should I emphasize more?",
+    "How can I rewrite my professional summary for impact?",
+    "What's the fastest way to improve my ATS score?"
   ];
 
   return (

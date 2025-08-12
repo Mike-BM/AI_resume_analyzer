@@ -27,17 +27,18 @@ const ApiKeySetup: React.FC<ApiKeySetupProps> = ({ onApiKeySet, currentApiKey })
       alert('Invalid API key. Please check your Gemini API key and try again.');
     }
     setIsValidating(false);
-  };
+          <span>Optional: Enable AI Chat (Free Gemini API):</span>
 
   return (
     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-6">
       <div className="flex items-center space-x-3 mb-4">
         <div className="p-2 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg">
           <Key className="w-5 h-5 text-white" />
-        </div>
+          <li>Paste it above for personalized AI resume coaching</li>
         <div>
           <h3 className="text-lg font-semibold text-gray-900">AI-Powered Resume Q&A</h3>
-          <p className="text-sm text-gray-600">Get personalized advice with Google Gemini AI</p>
+          <strong>Note:</strong> The core resume analysis works perfectly without an API key. 
+          This optional feature adds personalized AI coaching for advanced users.
         </div>
       </div>
 

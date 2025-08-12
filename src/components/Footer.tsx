@@ -9,7 +9,7 @@ const Footer: React.FC = () => {
           <div>
             <h3 className="text-lg font-semibold mb-4">Resume Analyzer</h3>
             <p className="text-gray-400 text-sm leading-relaxed">
-              Professional HR tool designed to help job seekers optimize their resumes for ATS systems and impress human recruiters.
+              Advanced AI-powered resume optimization tool that analyzes, scores, and enhances your resume for maximum ATS compatibility and recruiter appeal.
             </p>
           </div>
           
