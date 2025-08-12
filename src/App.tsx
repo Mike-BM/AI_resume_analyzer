@@ -2,14 +2,19 @@ import React, { useState } from 'react';
 import Header from './components/Header';
 import InputSection from './components/InputSection';
 import AnalysisResults from './components/AnalysisResults';
+import ApiKeySetup from './components/ApiKeySetup';
+import ResumeChat from './components/ResumeChat';
 import Footer from './components/Footer';
 import { ResumeAnalyzer } from './utils/resumeAnalyzer';
+import { GeminiService } from './utils/geminiService';
 import { AnalysisResult } from './types';
 
 function App() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [lastAnalysisData, setLastAnalysisData] = useState<{resume: string, jobDescription: string} | null>(null);
+  const [geminiApiKey, setGeminiApiKey] = useState<string>('');
+  const [geminiService] = useState<GeminiService>(new GeminiService());
 
   const handleAnalyze = async (resume: string, jobDescription: string) => {
     setIsAnalyzing(true);
@@ -76,6 +81,18 @@ function App() {
     }
   };
   return (
+  const handleApiKeySet = (apiKey: string) => {
+    setGeminiApiKey(apiKey);
+    if (apiKey) {
+      try {
+        geminiService.initialize(apiKey);
+      } catch (error) {
+        alert('Failed to initialize Gemini API. Please check your API key.');
+        setGeminiApiKey('');
+      }
+    }
+  };
+
     <div className="min-h-screen bg-gray-50">
       <Header />
       
@@ -102,6 +119,26 @@ function App() {
             onDownload={handleDownloadOptimized}
             onReAnalyze={handleReAnalyze}
           />
+          
+          {/* API Key Setup */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <ApiKeySetup 
+              onApiKeySet={handleApiKeySet}
+              currentApiKey={geminiApiKey}
+            />
+          </div>
+          
+          {/* AI Chat - Only show if API key is set */}
+          {geminiApiKey && geminiService.isInitialized() && lastAnalysisData && (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+              <ResumeChat
+                geminiService={geminiService}
+                resumeText={lastAnalysisData.resume}
+                jobDescription={lastAnalysisData.jobDescription}
+                analysisContext={analysisResult}
+              />
+            </div>
+          )}
         </>
       )}
       

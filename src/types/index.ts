@@ -63,3 +63,14 @@ export interface NextStep {
   estimatedImpact: string;
   timeRequired: string;
 }
+
+export interface ChatMessage {
+  id: string;
+  type: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
+export interface ApiKeyConfig {
+  geminiApiKey: string;
+}
